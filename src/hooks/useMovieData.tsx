@@ -66,52 +66,141 @@ const SAMPLE_MOVIES: Movie[] = [
   },
 ];
 
+// TMDB API key
+const TMDB_API_KEY = "3456c6a647ebec2c9855eccc51be348d";
+const TMDB_BASE_URL = "https://api.themoviedb.org/3";
+
 export const useMovieData = () => {
   const [movies, setMovies] = useState<Movie[]>(SAMPLE_MOVIES);
   const [filteredMovies, setFilteredMovies] = useState<Movie[]>(SAMPLE_MOVIES);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const filterMovies = (filters: SearchFilters) => {
-    setIsLoading(true);
+  // Convert TMDB movie to our Movie type
+  const convertTMDBMovie = (tmdbMovie: any): Movie => {
+    return {
+      id: tmdbMovie.id,
+      title: tmdbMovie.title,
+      year: new Date(tmdbMovie.release_date).getFullYear() || 0,
+      director: tmdbMovie.director || "Unknown",
+      genre: tmdbMovie.genres ? tmdbMovie.genres.map((g: any) => g.name) : [],
+      rating: tmdbMovie.vote_average || 0,
+      synopsis: tmdbMovie.overview || "No synopsis available",
+      poster: tmdbMovie.poster_path 
+        ? `https://image.tmdb.org/t/p/w500${tmdbMovie.poster_path}`
+        : "https://via.placeholder.com/500x750?text=No+Poster+Available"
+    };
+  };
+
+  // Fetch movie details including director
+  const fetchMovieDetails = async (movieId: number) => {
     try {
-      let results = [...movies];
+      // Get basic movie details
+      const movieResponse = await fetch(
+        `${TMDB_BASE_URL}/movie/${movieId}?api_key=${TMDB_API_KEY}&append_to_response=credits`
+      );
       
-      // Filter by title/query with fuzzy matching
-      if (filters.query) {
-        const query = filters.query.toLowerCase();
-        results = results.filter(movie => 
-          movie.title.toLowerCase().includes(query)
-        );
+      if (!movieResponse.ok) {
+        throw new Error('Failed to fetch movie details');
       }
       
-      // Filter by year
-      if (filters.year && filters.year !== '') {
-        const year = parseInt(filters.year);
-        if (!isNaN(year)) {
-          results = results.filter(movie => movie.year === year);
+      const movieData = await movieResponse.json();
+      
+      // Find director from credits
+      let director = "Unknown";
+      if (movieData.credits && movieData.credits.crew) {
+        const directorInfo = movieData.credits.crew.find((person: any) => person.job === "Director");
+        if (directorInfo) {
+          director = directorInfo.name;
         }
       }
       
-      // Filter by director
-      if (filters.director && filters.director !== '') {
-        const director = filters.director.toLowerCase();
-        results = results.filter(movie => 
-          movie.director.toLowerCase().includes(director)
-        );
+      return { ...movieData, director };
+    } catch (error) {
+      console.error("Error fetching movie details:", error);
+      return null;
+    }
+  };
+
+  // Search TMDB API
+  const searchTMDBMovies = async (query: string) => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(
+        `${TMDB_BASE_URL}/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}`
+      );
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch from TMDB');
       }
       
-      // Filter by genre (comma separated)
-      if (filters.genre && filters.genre !== '') {
-        const genres = filters.genre.toLowerCase().split(',').map(g => g.trim());
-        results = results.filter(movie => 
-          genres.some(genre => 
-            movie.genre.some(g => g.toLowerCase().includes(genre))
-          )
-        );
+      const data = await response.json();
+      
+      // For the first 10 search results, fetch complete details with director info
+      const detailedMoviesPromises = data.results.slice(0, 10).map((movie: any) => 
+        fetchMovieDetails(movie.id)
+      );
+      
+      const detailedMovies = await Promise.all(detailedMoviesPromises);
+      const validMovies = detailedMovies.filter(Boolean).map(convertTMDBMovie);
+      
+      return validMovies;
+    } catch (err) {
+      console.error("Error searching TMDB:", err);
+      setError("Error searching movies from TMDB");
+      return [];
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const filterMovies = async (filters: SearchFilters) => {
+    setIsLoading(true);
+    try {
+      // If there's a search query, search TMDB
+      if (filters.query) {
+        const tmdbResults = await searchTMDBMovies(filters.query);
+        setFilteredMovies(tmdbResults);
+        setMovies(tmdbResults);
+        return;
       }
       
-      setFilteredMovies(results);
+      // If there's a specific year, director or genre filter
+      if (filters.year || filters.director || filters.genre) {
+        let results = [...movies];
+        
+        // Filter by year
+        if (filters.year && filters.year !== '') {
+          const year = parseInt(filters.year);
+          if (!isNaN(year)) {
+            results = results.filter(movie => movie.year === year);
+          }
+        }
+        
+        // Filter by director
+        if (filters.director && filters.director !== '') {
+          const director = filters.director.toLowerCase();
+          results = results.filter(movie => 
+            movie.director.toLowerCase().includes(director)
+          );
+        }
+        
+        // Filter by genre (comma separated)
+        if (filters.genre && filters.genre !== '') {
+          const genres = filters.genre.toLowerCase().split(',').map(g => g.trim());
+          results = results.filter(movie => 
+            genres.some(genre => 
+              movie.genre.some(g => g.toLowerCase().includes(genre))
+            )
+          );
+        }
+        
+        setFilteredMovies(results);
+      } else {
+        // No filters, show default movies
+        setFilteredMovies(SAMPLE_MOVIES);
+      }
+      
       setError(null);
     } catch (err) {
       setError("Error filtering movies");
@@ -122,8 +211,24 @@ export const useMovieData = () => {
   };
 
   // Function to fetch movie by ID
-  const getMovieById = (id: number): Movie | undefined => {
-    return movies.find(movie => movie.id === id);
+  const getMovieById = async (id: number): Promise<Movie | undefined> => {
+    // First check local movies
+    const localMovie = movies.find(movie => movie.id === id);
+    if (localMovie) {
+      return localMovie;
+    }
+    
+    // If not found locally, try to fetch from TMDB
+    try {
+      const movieData = await fetchMovieDetails(id);
+      if (movieData) {
+        return convertTMDBMovie(movieData);
+      }
+    } catch (error) {
+      console.error("Error fetching movie by ID:", error);
+    }
+    
+    return undefined;
   };
 
   // In a real application, this would fetch from an API

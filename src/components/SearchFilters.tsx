@@ -15,30 +15,38 @@ const SearchFilters = ({ onSearch }: SearchFiltersProps) => {
     director: '',
     genre: ''
   });
+  const [isSearching, setIsSearching] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFilters(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSearch(filters);
+    setIsSearching(true);
+    try {
+      await onSearch(filters);
+    } finally {
+      setIsSearching(false);
+    }
   };
 
-  const handleReset = () => {
-    setFilters({
+  const handleReset = async () => {
+    const emptyFilters = {
       query: '',
       year: '',
       director: '',
       genre: ''
-    });
-    onSearch({
-      query: '',
-      year: '',
-      director: '',
-      genre: ''
-    });
+    };
+    
+    setFilters(emptyFilters);
+    setIsSearching(true);
+    try {
+      await onSearch(emptyFilters);
+    } finally {
+      setIsSearching(false);
+    }
   };
 
   return (
@@ -46,19 +54,24 @@ const SearchFilters = ({ onSearch }: SearchFiltersProps) => {
       <div className="flex flex-col sm:flex-row gap-2">
         <Input
           name="query"
-          placeholder="Search movie titles..."
+          placeholder="Search movie titles from TMDB..."
           value={filters.query}
           onChange={handleInputChange}
           className="flex-1"
         />
-        <Button type="submit" className="btn-cinema">
-          Search
+        <Button 
+          type="submit" 
+          className="btn-cinema"
+          disabled={isSearching}
+        >
+          {isSearching ? 'Searching...' : 'Search'}
         </Button>
         <Button 
           type="button" 
           variant="outline" 
           onClick={handleReset} 
           className="btn-cinema-outline"
+          disabled={isSearching}
         >
           Reset
         </Button>

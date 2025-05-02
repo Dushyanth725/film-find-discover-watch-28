@@ -18,6 +18,7 @@ const Dashboard = () => {
   const { collections, addToCollection, removeFromCollection, isInCollection, moveToWatched } = useUserCollections();
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [activeCollection, setActiveCollection] = useState<CollectionType | null>(null);
+  const [isLoadingDetails, setIsLoadingDetails] = useState<boolean>(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -29,8 +30,22 @@ const Dashboard = () => {
     }
   }, [navigate]);
 
-  const handleMovieSelect = (movie: Movie) => {
-    setSelectedMovie(movie);
+  const handleMovieSelect = async (movie: Movie) => {
+    setIsLoadingDetails(true);
+    try {
+      // Fetch full movie details if needed
+      const fullMovieDetails = await getMovieById(movie.id);
+      if (fullMovieDetails) {
+        setSelectedMovie(fullMovieDetails);
+      } else {
+        setSelectedMovie(movie);
+      }
+    } catch (error) {
+      console.error("Error fetching movie details:", error);
+      setSelectedMovie(movie);
+    } finally {
+      setIsLoadingDetails(false);
+    }
   };
 
   const handleBackToList = () => {
@@ -76,6 +91,10 @@ const Dashboard = () => {
     ? movies.filter(movie => collections[activeCollection].includes(movie.id))
     : movies;
 
+  const handleSearch = async (filters: any) => {
+    await filterMovies(filters);
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
@@ -104,7 +123,7 @@ const Dashboard = () => {
         
         {!activeCollection && (
           <div className="mb-6">
-            <SearchFilters onSearch={filterMovies} />
+            <SearchFilters onSearch={handleSearch} />
           </div>
         )}
         
@@ -154,13 +173,19 @@ const Dashboard = () => {
           {/* Right column: Movie details */}
           {selectedMovie && (
             <div className="w-full lg:w-2/3">
-              <MovieDetail 
-                movie={selectedMovie}
-                onBack={handleBackToList}
-                onAddToCollection={handleAddToCollection}
-                onRemoveFromCollection={handleRemoveFromCollection}
-                isInCollection={isInCollection}
-              />
+              {isLoadingDetails ? (
+                <div className="flex justify-center items-center h-64 border border-border rounded-lg bg-card">
+                  <div className="text-xl text-muted-foreground">Loading movie details...</div>
+                </div>
+              ) : (
+                <MovieDetail 
+                  movie={selectedMovie}
+                  onBack={handleBackToList}
+                  onAddToCollection={handleAddToCollection}
+                  onRemoveFromCollection={handleRemoveFromCollection}
+                  isInCollection={isInCollection}
+                />
+              )}
             </div>
           )}
         </div>
