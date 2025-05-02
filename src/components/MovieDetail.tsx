@@ -42,7 +42,8 @@ const MovieDetail = ({
           <img 
             src={movie.poster} 
             alt={movie.title}
-            className="w-full h-auto object-cover" 
+            className="w-full h-auto object-cover"
+            loading="lazy"
           />
         </div>
         
@@ -63,7 +64,7 @@ const MovieDetail = ({
           
           <div className="mt-4">
             <h3 className="text-xl font-semibold mb-2">Synopsis</h3>
-            <p className="text-sm leading-relaxed">{movie.synopsis}</p>
+            <p className="text-sm leading-relaxed break-words whitespace-normal">{movie.synopsis}</p>
           </div>
           
           <div className="mt-6 flex flex-wrap gap-2">

@@ -9,7 +9,7 @@ interface MovieCardProps {
 const MovieCard = ({ movie, onClick }: MovieCardProps) => {
   return (
     <div 
-      className="movie-card cursor-pointer animate-fade-in"
+      className="movie-card cursor-pointer hover:shadow-lg transition-shadow duration-300 rounded-lg overflow-hidden border border-border animate-fade-in"
       onClick={onClick}
     >
       <div className="relative h-48 overflow-hidden">
@@ -17,6 +17,7 @@ const MovieCard = ({ movie, onClick }: MovieCardProps) => {
           src={movie.poster} 
           alt={movie.title} 
           className="w-full h-full object-cover"
+          loading="lazy"
         />
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-2">
           <div className="flex justify-between items-center">
