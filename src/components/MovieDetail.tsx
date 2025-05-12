@@ -1,6 +1,9 @@
 
-import { Movie, CollectionType } from '@/types';
+import { Movie, CollectionType, Person } from '@/types';
 import { Button } from '@/components/ui/button';
+import RatingStars from './RatingStars';
+import { useState } from 'react';
+import { ArrowLeft, User } from 'lucide-react';
 
 interface MovieDetailProps {
   movie: Movie;
@@ -8,6 +11,10 @@ interface MovieDetailProps {
   onAddToCollection: (movieId: number, collection: CollectionType) => void;
   onRemoveFromCollection: (movieId: number, collection: CollectionType) => void;
   isInCollection: (movieId: number, collection: CollectionType) => boolean;
+  onRate?: (movieId: number, rating: number) => void;
+  onDeleteRating?: (movieId: number) => void;
+  userRating?: number;
+  onPersonClick?: (person: Person) => void;
 }
 
 const MovieDetail = ({
@@ -15,13 +22,25 @@ const MovieDetail = ({
   onBack,
   onAddToCollection,
   onRemoveFromCollection,
-  isInCollection
+  isInCollection,
+  onRate,
+  onDeleteRating,
+  userRating,
+  onPersonClick
 }: MovieDetailProps) => {
+  const [showCast, setShowCast] = useState(true);
+  
   const handleCollectionAction = (collection: CollectionType) => {
     if (isInCollection(movie.id, collection)) {
       onRemoveFromCollection(movie.id, collection);
     } else {
       onAddToCollection(movie.id, collection);
+    }
+  };
+  
+  const handlePersonClick = (person: Person) => {
+    if (onPersonClick) {
+      onPersonClick(person);
     }
   };
   
@@ -31,9 +50,7 @@ const MovieDetail = ({
         onClick={onBack}
         className="mb-4 flex items-center gap-1 text-cinema-red hover:underline"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M15 18l-6-6 6-6"/>
-        </svg>
+        <ArrowLeft width={20} height={20} />
         Back
       </button>
       
@@ -54,12 +71,36 @@ const MovieDetail = ({
           </div>
           
           <div className="mt-2 space-y-2 text-muted-foreground">
-            <p><span className="font-semibold">Directed by:</span> {movie.director}</p>
-            <p><span className="font-semibold">Year:</span> {movie.year}</p>
+            <p>
+              <span className="font-semibold">
+                {movie.media_type === 'movie' ? 'Directed by:' : 'Created by:'}
+              </span> 
+              <button 
+                onClick={() => handlePersonClick({ id: 0, name: movie.director })}
+                className="ml-1 text-foreground hover:underline focus:outline-none"
+              >
+                {movie.director}
+              </button>
+            </p>
+            <p>
+              <span className="font-semibold">Year:</span> {movie.year}
+            </p>
             <p>
               <span className="font-semibold">Genre:</span>{' '}
               {movie.genre.join(', ')}
             </p>
+            {onRate && isInCollection(movie.id, 'watched') && (
+              <div className="flex flex-col gap-1 pt-1">
+                <span className="font-semibold">Your Rating:</span>
+                <RatingStars 
+                  initialRating={userRating || 0} 
+                  movieId={movie.id} 
+                  onRate={onRate}
+                  onDelete={onDeleteRating}
+                  size="md"
+                />
+              </div>
+            )}
           </div>
           
           <div className="mt-4">
@@ -94,6 +135,7 @@ const MovieDetail = ({
               variant={isInCollection(movie.id, 'watchlist') ? 'secondary' : 'outline'}
               onClick={() => handleCollectionAction('watchlist')}
               className="flex items-center gap-2"
+              disabled={isInCollection(movie.id, 'watched')}
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill={isInCollection(movie.id, 'watchlist') ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="10"></circle>
@@ -104,6 +146,86 @@ const MovieDetail = ({
           </div>
         </div>
       </div>
+      
+      {/* Cast & Crew Section */}
+      {(movie.cast?.length || movie.crew?.length) && (
+        <div className="mt-8">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xl font-bold">Cast & Crew</h3>
+            <div className="flex gap-2">
+              <Button 
+                variant={showCast ? "secondary" : "outline"} 
+                onClick={() => setShowCast(true)}
+                size="sm"
+              >
+                Cast
+              </Button>
+              <Button 
+                variant={!showCast ? "secondary" : "outline"} 
+                onClick={() => setShowCast(false)}
+                size="sm"
+              >
+                Crew
+              </Button>
+            </div>
+          </div>
+          
+          {showCast ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              {movie.cast?.map((person) => (
+                <div 
+                  key={`cast-${person.id}`}
+                  className="flex flex-col items-center text-center"
+                >
+                  <div className="w-20 h-20 md:w-24 md:h-24 relative rounded-full overflow-hidden bg-muted mb-2">
+                    {person.profile_path ? (
+                      <img 
+                        src={person.profile_path} 
+                        alt={person.name}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center w-full h-full">
+                        <User size={30} />
+                      </div>
+                    )}
+                  </div>
+                  <p className="font-medium text-sm">{person.name}</p>
+                  <p className="text-xs text-muted-foreground">{person.character}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              {movie.crew?.map((person) => (
+                <div 
+                  key={`crew-${person.id}-${person.job}`}
+                  className="flex flex-col items-center text-center cursor-pointer"
+                  onClick={() => handlePersonClick(person)}
+                >
+                  <div className="w-20 h-20 md:w-24 md:h-24 relative rounded-full overflow-hidden bg-muted mb-2">
+                    {person.profile_path ? (
+                      <img 
+                        src={person.profile_path} 
+                        alt={person.name}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center w-full h-full">
+                        <User size={30} />
+                      </div>
+                    )}
+                  </div>
+                  <p className="font-medium text-sm">{person.name}</p>
+                  <p className="text-xs text-muted-foreground">{person.job}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

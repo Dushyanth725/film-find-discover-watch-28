@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMovieData } from '@/hooks/useMovieData';
 import { useUserCollections } from '@/hooks/useUserCollections';
-import { Movie, CollectionType } from '@/types';
+import { Movie, CollectionType, Person } from '@/types';
 import Navbar from '@/components/Navbar';
 import SearchFilters from '@/components/SearchFilters';
 import MovieCard from '@/components/MovieCard';
@@ -12,10 +12,22 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import MediaTypeToggle from '@/components/MediaTypeToggle';
 
 const Dashboard = () => {
-  const { movies, isLoading, filterMovies, getMovieById } = useMovieData();
-  const { collections, addToCollection, removeFromCollection, isInCollection, moveToWatched } = useUserCollections();
+  const { movies, isLoading, filterMovies, getMovieById, mediaType, setMediaType } = useMovieData();
+  const { 
+    collections, 
+    addToCollection, 
+    removeFromCollection, 
+    isInCollection, 
+    moveToWatched,
+    ratings,
+    addRating,
+    removeRating,
+    getRating
+  } = useUserCollections();
+  
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [activeCollection, setActiveCollection] = useState<CollectionType | null>(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState<boolean>(false);
@@ -34,7 +46,7 @@ const Dashboard = () => {
     setIsLoadingDetails(true);
     try {
       // Fetch full movie details if needed
-      const fullMovieDetails = await getMovieById(movie.id);
+      const fullMovieDetails = await getMovieById(movie.id, movie.media_type);
       if (fullMovieDetails) {
         setSelectedMovie(fullMovieDetails);
       } else {
@@ -86,10 +98,53 @@ const Dashboard = () => {
     });
   };
 
-  // Filter movies based on active collection
+  const handleRate = (movieId: number, rating: number) => {
+    addRating(movieId, rating, mediaType);
+    toast({
+      title: 'Rating saved',
+      description: `You rated this ${mediaType === 'movie' ? 'movie' : 'TV series'} ${rating} stars`,
+    });
+  };
+
+  const handleDeleteRating = (movieId: number) => {
+    removeRating(movieId);
+    toast({
+      title: 'Rating removed',
+      description: `Your rating has been removed`,
+    });
+  };
+
+  const handlePersonClick = async (person: Person) => {
+    if (!person.name) return;
+    
+    toast({
+      title: 'Searching filmography',
+      description: `Looking for works by ${person.name}`,
+    });
+    
+    await filterMovies({
+      query: '',
+      year: '',
+      director: person.name,
+      genre: '',
+      media_type: mediaType
+    });
+    
+    setSelectedMovie(null);
+  };
+
+  const handleMediaTypeChange = (type: 'movie' | 'tv') => {
+    setMediaType(type);
+    setSelectedMovie(null);
+  };
+
+  // Filter movies based on active collection and media type
   const filteredMovies = activeCollection
-    ? movies.filter(movie => collections[activeCollection].includes(movie.id))
-    : movies;
+    ? movies.filter(movie => 
+        collections[activeCollection].includes(movie.id) && 
+        (!movie.media_type || movie.media_type === mediaType)
+      )
+    : movies.filter(movie => !movie.media_type || movie.media_type === mediaType);
 
   const handleSearch = async (filters: any) => {
     await filterMovies(filters);
@@ -101,7 +156,9 @@ const Dashboard = () => {
       
       <div className="container mx-auto px-4 py-8 flex-1">
         <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <h2 className="text-2xl font-bold">Discover Movies</h2>
+          <div>
+            <MediaTypeToggle mediaType={mediaType} onChange={handleMediaTypeChange} />
+          </div>
           
           <div className="w-full sm:w-auto">
             <Select 
@@ -112,9 +169,9 @@ const Dashboard = () => {
                 <SelectValue placeholder="Filter by collection" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Movies</SelectItem>
-                <SelectItem value="liked">Liked Movies</SelectItem>
-                <SelectItem value="watched">Watched Movies</SelectItem>
+                <SelectItem value="all">All {mediaType === 'movie' ? 'Movies' : 'TV Series'}</SelectItem>
+                <SelectItem value="liked">Liked</SelectItem>
+                <SelectItem value="watched">Watched</SelectItem>
                 <SelectItem value="watchlist">Watchlist</SelectItem>
               </SelectContent>
             </Select>
@@ -123,7 +180,7 @@ const Dashboard = () => {
         
         {!activeCollection && (
           <div className="mb-6">
-            <SearchFilters onSearch={handleSearch} />
+            <SearchFilters onSearch={handleSearch} mediaType={mediaType} />
           </div>
         )}
         
@@ -139,8 +196,8 @@ const Dashboard = () => {
                 <p className="text-2xl font-bold text-muted-foreground">----</p>
                 <p className="text-muted-foreground mt-2">
                   {activeCollection 
-                    ? `No movies in your ${activeCollection} list yet.` 
-                    : 'No movies found matching your search criteria.'}
+                    ? `No ${mediaType === 'movie' ? 'movies' : 'TV series'} in your ${activeCollection} list yet.` 
+                    : `No ${mediaType === 'movie' ? 'movies' : 'TV series'} found matching your search criteria.`}
                 </p>
               </div>
             ) : (
@@ -149,7 +206,9 @@ const Dashboard = () => {
                   <div key={movie.id} className="relative">
                     <MovieCard 
                       movie={movie} 
-                      onClick={() => handleMovieSelect(movie)} 
+                      onClick={() => handleMovieSelect(movie)}
+                      userRating={getRating(movie.id)}
+                      showRating={isInCollection(movie.id, 'watched')}
                     />
                     
                     {activeCollection === 'watchlist' && (
@@ -175,7 +234,7 @@ const Dashboard = () => {
             <div className="w-full lg:w-2/3">
               {isLoadingDetails ? (
                 <div className="flex justify-center items-center h-64 border border-border rounded-lg bg-card">
-                  <div className="text-xl text-muted-foreground">Loading movie details...</div>
+                  <div className="text-xl text-muted-foreground">Loading details...</div>
                 </div>
               ) : (
                 <MovieDetail 
@@ -184,6 +243,10 @@ const Dashboard = () => {
                   onAddToCollection={handleAddToCollection}
                   onRemoveFromCollection={handleRemoveFromCollection}
                   isInCollection={isInCollection}
+                  onRate={handleRate}
+                  onDeleteRating={handleDeleteRating}
+                  userRating={getRating(selectedMovie.id)}
+                  onPersonClick={handlePersonClick}
                 />
               )}
             </div>

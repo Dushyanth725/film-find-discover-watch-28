@@ -24,8 +24,9 @@ const Navbar = () => {
     <nav className="bg-card shadow-md py-4 border-b">
       <div className="container mx-auto flex justify-between items-center px-4">
         <Link to={user ? '/dashboard' : '/'}>
-          <h1 className="text-3xl md:text-4xl text-cinema-red">
-            KNOW YOUR FILMS
+          <h1 className="text-3xl md:text-4xl">
+            <span className="text-foreground">KNOW YOUR</span>{' '}
+            <span className="text-secondary">FILMS</span>
           </h1>
         </Link>
         

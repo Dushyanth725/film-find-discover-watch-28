@@ -6,14 +6,16 @@ import { SearchFilters as SearchFiltersType } from '@/types';
 
 interface SearchFiltersProps {
   onSearch: (filters: SearchFiltersType) => void;
+  mediaType: 'movie' | 'tv';
 }
 
-const SearchFilters = ({ onSearch }: SearchFiltersProps) => {
+const SearchFilters = ({ onSearch, mediaType }: SearchFiltersProps) => {
   const [filters, setFilters] = useState<SearchFiltersType>({
     query: '',
     year: '',
     director: '',
-    genre: ''
+    genre: '',
+    media_type: mediaType
   });
   const [isSearching, setIsSearching] = useState(false);
 
@@ -22,11 +24,17 @@ const SearchFilters = ({ onSearch }: SearchFiltersProps) => {
     setFilters(prev => ({ ...prev, [name]: value }));
   };
 
+  // Update filters when media type changes
+  useState(() => {
+    setFilters(prev => ({ ...prev, media_type: mediaType }));
+  });
+
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSearching(true);
     try {
-      await onSearch(filters);
+      // Always include the current media type in the search filters
+      await onSearch({ ...filters, media_type: mediaType });
     } finally {
       setIsSearching(false);
     }
@@ -37,7 +45,8 @@ const SearchFilters = ({ onSearch }: SearchFiltersProps) => {
       query: '',
       year: '',
       director: '',
-      genre: ''
+      genre: '',
+      media_type: mediaType
     };
     
     setFilters(emptyFilters);
@@ -54,7 +63,7 @@ const SearchFilters = ({ onSearch }: SearchFiltersProps) => {
       <div className="flex flex-col sm:flex-row gap-2">
         <Input
           name="query"
-          placeholder="Search movie titles from TMDB..."
+          placeholder={`Search ${mediaType === 'movie' ? 'movie' : 'TV series'} titles from TMDB...`}
           value={filters.query}
           onChange={handleInputChange}
           className="flex-1"
@@ -93,12 +102,12 @@ const SearchFilters = ({ onSearch }: SearchFiltersProps) => {
 
         <div>
           <label htmlFor="director" className="text-sm font-medium block mb-1">
-            Director
+            {mediaType === 'movie' ? 'Director' : 'Creator'}
           </label>
           <Input
             id="director"
             name="director"
-            placeholder="e.g., Christopher Nolan"
+            placeholder={`e.g., ${mediaType === 'movie' ? 'Christopher Nolan' : 'Vince Gilligan'}`}
             value={filters.director}
             onChange={handleInputChange}
           />
