@@ -1,7 +1,11 @@
+
 import { useState, useEffect } from 'react';
 import { CollectionType, UserRating } from '@/types';
-import { supabase } from '@/integrations/supabase/client';
-import { UserCollectionsTable, userRatingsToJson, jsonToUserRatings } from '@/types/supabase';
+import { jsonToUserRatings } from '@/types/supabase';
+import { loadFromLocalStorage, saveToLocalStorage } from './collections/useLocalStorage';
+import { loadUserDataFromSupabase, createUserCollection, updateUserCollection } from './collections/useSupabaseOperations';
+import { isInCollection as checkInCollection, addToCollection as addTo, removeFromCollection as removeFrom, moveToWatched as moveTo } from './collections/useCollectionOperations';
+import { addRating as addRatingTo, removeRating as removeRatingFrom, getRating as getUserRating } from './collections/useRatingOperations';
 
 export const useUserCollections = () => {
   const [liked, setLiked] = useState<number[]>([]);
@@ -22,46 +26,34 @@ export const useUserCollections = () => {
   // Load user data from Supabase
   const loadUserData = async (username: string) => {
     try {
-      const { data, error } = await supabase
-        .from('user_collections')
-        .select('*')
-        .eq('username', username)
-        .single();
+      const { data, error } = await loadUserDataFromSupabase(username);
       
       if (error) {
         if (error.code === 'PGRST116') {
           // No data found, create a new record
-          const storedLiked = localStorage.getItem('liked');
-          const storedWatched = localStorage.getItem('watched');
-          const storedWatchlist = localStorage.getItem('watchlist');
-          const storedRatings = localStorage.getItem('ratings');
-
-          const likedData = storedLiked ? JSON.parse(storedLiked) : [];
-          const watchedData = storedWatched ? JSON.parse(storedWatched) : [];
-          const watchlistData = storedWatchlist ? JSON.parse(storedWatchlist) : [];
-          const ratingsData = storedRatings ? JSON.parse(storedRatings) : [];
+          const storedData = loadFromLocalStorage();
 
           // Create new record with localStorage data
-          const { error: insertError } = await supabase.from('user_collections').insert({
+          const { error: insertError } = await createUserCollection(
             username,
-            liked: likedData,
-            watched: watchedData,
-            watchlist: watchlistData,
-            ratings: userRatingsToJson(ratingsData)
-          });
+            storedData.liked,
+            storedData.watched,
+            storedData.watchlist,
+            storedData.ratings
+          );
 
           if (insertError) {
             console.error('Error inserting user data:', insertError);
           }
 
-          setLiked(likedData);
-          setWatched(watchedData);
-          setWatchlist(watchlistData);
-          setRatings(ratingsData);
+          setLiked(storedData.liked);
+          setWatched(storedData.watched);
+          setWatchlist(storedData.watchlist);
+          setRatings(storedData.ratings);
         } else {
           console.error('Error loading user data:', error);
           // Fallback to localStorage
-          loadFromLocalStorage();
+          loadFromLocalStorageData();
         }
       } else if (data) {
         // Use data from Supabase
@@ -71,29 +63,27 @@ export const useUserCollections = () => {
         setRatings(data.ratings ? jsonToUserRatings(data.ratings) : []);
 
         // Update localStorage with Supabase data
-        localStorage.setItem('liked', JSON.stringify(data.liked || []));
-        localStorage.setItem('watched', JSON.stringify(data.watched || []));
-        localStorage.setItem('watchlist', JSON.stringify(data.watchlist || []));
-        localStorage.setItem('ratings', JSON.stringify(data.ratings ? jsonToUserRatings(data.ratings) : []));
+        saveToLocalStorage(
+          data.liked || [],
+          data.watched || [],
+          data.watchlist || [],
+          data.ratings ? jsonToUserRatings(data.ratings) : []
+        );
       }
     } catch (error) {
       console.error('Error in loadUserData:', error);
       // Fallback to localStorage
-      loadFromLocalStorage();
+      loadFromLocalStorageData();
     }
   };
 
   // Load collections from localStorage as fallback
-  const loadFromLocalStorage = () => {
-    const storedLiked = localStorage.getItem('liked');
-    const storedWatched = localStorage.getItem('watched');
-    const storedWatchlist = localStorage.getItem('watchlist');
-    const storedRatings = localStorage.getItem('ratings');
-
-    if (storedLiked) setLiked(JSON.parse(storedLiked));
-    if (storedWatched) setWatched(JSON.parse(storedWatched));
-    if (storedWatchlist) setWatchlist(JSON.parse(storedWatchlist));
-    if (storedRatings) setRatings(JSON.parse(storedRatings));
+  const loadFromLocalStorageData = () => {
+    const storedData = loadFromLocalStorage();
+    setLiked(storedData.liked);
+    setWatched(storedData.watched);
+    setWatchlist(storedData.watchlist);
+    setRatings(storedData.ratings);
   };
 
   // Save to Supabase and localStorage
@@ -104,17 +94,13 @@ export const useUserCollections = () => {
     }
 
     try {
-      const { error } = await supabase
-        .from('user_collections')
-        .upsert({
-          username: userId,
-          liked,
-          watched,
-          watchlist,
-          ratings: userRatingsToJson(ratings)
-        }, {
-          onConflict: 'username'
-        });
+      const { error } = await updateUserCollection(
+        userId,
+        liked,
+        watched,
+        watchlist,
+        ratings
+      );
 
       if (error) {
         console.error('Error saving user data:', error);
@@ -145,111 +131,31 @@ export const useUserCollections = () => {
     saveUserData();
   }, [ratings]);
 
-  // Add movie to collection
-  const addToCollection = (movieId: number, collection: CollectionType) => {
-    if (collection === 'liked') {
-      if (!liked.includes(movieId)) {
-        setLiked([...liked, movieId]);
-      }
-    } else if (collection === 'watched') {
-      if (!watched.includes(movieId)) {
-        setWatched([...watched, movieId]);
-        // If a movie is marked as watched, remove it from watchlist
-        if (watchlist.includes(movieId)) {
-          setWatchlist(watchlist.filter(id => id !== movieId));
-        }
-      }
-    } else if (collection === 'watchlist') {
-      if (!watchlist.includes(movieId)) {
-        setWatchlist([...watchlist, movieId]);
-        // If a movie is added to watchlist, remove it from watched
-        if (watched.includes(movieId)) {
-          setWatched(watched.filter(id => id !== movieId));
-          // Also remove any rating for this movie
-          setRatings(ratings.filter(r => r.movieId !== movieId));
-        }
-      }
-    }
-  };
-
-  // Remove movie from collection
-  const removeFromCollection = (movieId: number, collection: CollectionType) => {
-    if (collection === 'liked') {
-      setLiked(liked.filter(id => id !== movieId));
-    } else if (collection === 'watched') {
-      setWatched(watched.filter(id => id !== movieId));
-      // Also remove any rating for this movie
-      setRatings(ratings.filter(r => r.movieId !== movieId));
-    } else if (collection === 'watchlist') {
-      setWatchlist(watchlist.filter(id => id !== movieId));
-    }
-  };
-
-  // Check if movie is in collection
-  const isInCollection = (movieId: number, collection: CollectionType): boolean => {
-    if (collection === 'liked') {
-      return liked.includes(movieId);
-    } else if (collection === 'watched') {
-      return watched.includes(movieId);
-    } else if (collection === 'watchlist') {
-      return watchlist.includes(movieId);
-    }
-    return false;
-  };
-
-  // Move from watchlist to watched
-  const moveToWatched = (movieId: number) => {
-    if (watchlist.includes(movieId)) {
-      setWatchlist(watchlist.filter(id => id !== movieId));
-      if (!watched.includes(movieId)) {
-        setWatched([...watched, movieId]);
-      }
-    }
-  };
-
-  // Rating functions
-  const addRating = (movieId: number, rating: number, media_type: 'movie' | 'tv' = 'movie') => {
-    const existingRating = ratings.find(r => r.movieId === movieId);
-    
-    if (existingRating) {
-      // Update existing rating
-      setRatings(ratings.map(r => 
-        r.movieId === movieId ? { ...r, rating } : r
-      ));
-    } else {
-      // Add new rating
-      setRatings([...ratings, { movieId, rating, media_type }]);
-    }
-    
-    // If a movie is rated, add it to watched list if not already there
-    if (!watched.includes(movieId)) {
-      setWatched([...watched, movieId]);
-      
-      // Remove from watchlist if present
-      if (watchlist.includes(movieId)) {
-        setWatchlist(watchlist.filter(id => id !== movieId));
-      }
-    }
-  };
-
-  const removeRating = (movieId: number) => {
-    setRatings(ratings.filter(r => r.movieId !== movieId));
-  };
-
-  const getRating = (movieId: number): number | undefined => {
-    const ratingObj = ratings.find(r => r.movieId === movieId);
-    return ratingObj ? ratingObj.rating : undefined;
-  };
-
+  // Collection operations using imported functions
+  const collections = { liked, watched, watchlist };
+  
   return {
-    collections: { liked, watched, watchlist },
+    collections,
     ratings,
-    addToCollection,
-    removeFromCollection,
-    isInCollection,
-    moveToWatched,
-    addRating,
-    removeRating,
-    getRating
+    addToCollection: (movieId: number, collection: CollectionType) => 
+      addTo(movieId, collection, collections, setLiked, setWatched, setWatchlist, setRatings, ratings),
+    
+    removeFromCollection: (movieId: number, collection: CollectionType) => 
+      removeFrom(movieId, collection, collections, setLiked, setWatched, setWatchlist, setRatings, ratings),
+    
+    isInCollection: (movieId: number, collection: CollectionType) => 
+      checkInCollection(movieId, collection, collections),
+    
+    moveToWatched: (movieId: number) => 
+      moveTo(movieId, collections, setWatched, setWatchlist),
+    
+    addRating: (movieId: number, rating: number, media_type: 'movie' | 'tv' = 'movie') => 
+      addRatingTo(movieId, rating, media_type, ratings, setRatings, watched, setWatched, watchlist, setWatchlist),
+    
+    removeRating: (movieId: number) => 
+      removeRatingFrom(movieId, ratings, setRatings),
+    
+    getRating: (movieId: number) => 
+      getUserRating(movieId, ratings)
   };
 };
