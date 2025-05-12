@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { CollectionType, UserRating } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
+import { UserCollectionsTable } from '@/types/supabase';
 
 export const useUserCollections = () => {
   const [liked, setLiked] = useState<number[]>([]);
@@ -48,7 +49,7 @@ export const useUserCollections = () => {
             watched: watchedData,
             watchlist: watchlistData,
             ratings: ratingsData
-          });
+          } as UserCollectionsTable);
 
           setLiked(likedData);
           setWatched(watchedData);
@@ -61,16 +62,17 @@ export const useUserCollections = () => {
         }
       } else if (data) {
         // Use data from Supabase
-        setLiked(data.liked || []);
-        setWatched(data.watched || []);
-        setWatchlist(data.watchlist || []);
-        setRatings(data.ratings || []);
+        const typedData = data as UserCollectionsTable;
+        setLiked(typedData.liked || []);
+        setWatched(typedData.watched || []);
+        setWatchlist(typedData.watchlist || []);
+        setRatings(typedData.ratings || []);
 
         // Update localStorage with Supabase data
-        localStorage.setItem('liked', JSON.stringify(data.liked || []));
-        localStorage.setItem('watched', JSON.stringify(data.watched || []));
-        localStorage.setItem('watchlist', JSON.stringify(data.watchlist || []));
-        localStorage.setItem('ratings', JSON.stringify(data.ratings || []));
+        localStorage.setItem('liked', JSON.stringify(typedData.liked || []));
+        localStorage.setItem('watched', JSON.stringify(typedData.watched || []));
+        localStorage.setItem('watchlist', JSON.stringify(typedData.watchlist || []));
+        localStorage.setItem('ratings', JSON.stringify(typedData.ratings || []));
       }
     } catch (error) {
       console.error('Error in loadUserData:', error);
@@ -108,7 +110,7 @@ export const useUserCollections = () => {
           watched,
           watchlist,
           ratings
-        }, {
+        } as UserCollectionsTable, {
           onConflict: 'username'
         });
 
