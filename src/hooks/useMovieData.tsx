@@ -81,7 +81,7 @@ export const useMovieData = () => {
   const [filteredMovies, setFilteredMovies] = useState<Movie[]>(SAMPLE_MOVIES);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [mediaType, setMediaType] = useState<'movie' | 'tv'>('movie'); // Moved up to fix TS2448 error
+  const [mediaType, setMediaType] = useState<'movie' | 'tv'>('movie');
 
   // Convert TMDB movie to our Movie type
   const convertTMDBMovie = (tmdbMovie: any, type: 'movie' | 'tv'): Movie => {

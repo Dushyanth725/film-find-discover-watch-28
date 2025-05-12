@@ -1,5 +1,7 @@
 
 // Define types for Supabase tables
+import { UserRating } from '@/types';
+
 export interface UserCollectionsTable {
   id: string;
   username: string;
