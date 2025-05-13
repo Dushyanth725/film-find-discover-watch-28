@@ -1,12 +1,15 @@
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { SearchFilters as SearchFiltersType } from '@/types';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchFilters } from '@/types';
+import { X } from 'lucide-react';
 
-interface SearchFiltersProps {
-  onSearch: (filters: SearchFiltersType) => void;
+export interface SearchFiltersProps {
+  onSearch: (filters: SearchFilters) => void;
   mediaType: 'movie' | 'tv';
+  placeholder?: string; // Making placeholder optional
 }
 
 const SearchFilters = ({ onSearch, mediaType }: SearchFiltersProps) => {

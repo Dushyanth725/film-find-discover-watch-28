@@ -7,8 +7,9 @@ import {
   addToCollection as addToCollectionInSupabase, 
   removeFromCollection as removeFromCollectionInSupabase,
   saveRating as saveRatingInSupabase,
-  removeRating as removeRatingInSupabase
-} from './collections/useSupabaseOperations';
+  removeRating as removeRatingInSupabase,
+  moveToWatched as moveToWatchedInSupabase
+} from './collections';
 import { 
   isInCollection as checkInCollection, 
   addToCollection as addTo, 

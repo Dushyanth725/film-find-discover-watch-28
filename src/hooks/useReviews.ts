@@ -1,17 +1,9 @@
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from './use-toast';
+import { Review, fetchReviews, saveReview as saveReviewInDb, deleteReview as deleteReviewInDb } from './reviews';
 
-export interface Review {
-  id?: string;
-  movie_id: number;
-  rating: number;
-  review_text?: string;
-  media_type: 'movie' | 'tv';
-  created_at?: string;
-  updated_at?: string;
-}
+export type { Review } from './reviews';
 
 export const useReviews = () => {
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -25,17 +17,14 @@ export const useReviews = () => {
     
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('reviews')
-        .select('*')
-        .eq('user_id', userId);
+      const { data, error } = await fetchReviews(userId);
         
       if (error) {
         throw error;
       }
       
       if (data) {
-        setReviews(data as Review[]);
+        setReviews(data);
       }
     } catch (error) {
       console.error('Error loading reviews:', error);
@@ -54,60 +43,21 @@ export const useReviews = () => {
     if (!userId) return null;
     
     try {
-      // Check if review already exists
-      const { data: existingReview } = await supabase
-        .from('reviews')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('movie_id', review.movie_id)
-        .maybeSingle();
+      const { data, error } = await saveReviewInDb(userId, review);
       
-      let result;
-      
-      if (existingReview) {
-        // Update existing review
-        result = await supabase
-          .from('reviews')
-          .update({
-            rating: review.rating,
-            review_text: review.review_text,
-            media_type: review.media_type,
-          })
-          .eq('id', existingReview.id)
-          .select()
-          .single();
-          
-        toast({
-          title: 'Review updated',
-          description: 'Your review has been updated successfully',
-        });
-      } else {
-        // Insert new review
-        result = await supabase
-          .from('reviews')
-          .insert({
-            user_id: userId,
-            movie_id: review.movie_id,
-            rating: review.rating,
-            review_text: review.review_text,
-            media_type: review.media_type,
-          })
-          .select()
-          .single();
-          
-        toast({
-          title: 'Review saved',
-          description: 'Your review has been saved successfully',
-        });
-      }
-      
-      if (result.error) {
-        throw result.error;
+      if (error) {
+        throw error;
       }
       
       // Update local state
       await loadReviews();
-      return result.data;
+      
+      toast({
+        title: review.id ? 'Review updated' : 'Review saved',
+        description: review.id ? 'Your review has been updated successfully' : 'Your review has been saved successfully',
+      });
+      
+      return data;
     } catch (error) {
       console.error('Error saving review:', error);
       toast({
@@ -124,11 +74,7 @@ export const useReviews = () => {
     if (!userId) return false;
     
     try {
-      const { error } = await supabase
-        .from('reviews')
-        .delete()
-        .eq('user_id', userId)
-        .eq('movie_id', movieId);
+      const { error } = await deleteReviewInDb(userId, movieId);
         
       if (error) {
         throw error;
