@@ -28,7 +28,10 @@ export const useReviews = () => {
       const { data, error } = await supabase
         .from('reviews')
         .select('*')
-        .eq('user_id', userId);
+        .eq('user_id', userId) as { 
+          data: Review[] | null; 
+          error: any; 
+        };
         
       if (error) {
         throw error;
@@ -60,7 +63,10 @@ export const useReviews = () => {
         .select('id')
         .eq('user_id', userId)
         .eq('movie_id', review.movie_id)
-        .maybeSingle();
+        .maybeSingle() as { 
+          data: Review | null; 
+          error: any; 
+        };
       
       let result;
       
@@ -75,7 +81,10 @@ export const useReviews = () => {
           })
           .eq('id', existingReview.id)
           .select()
-          .single();
+          .single() as { 
+            data: Review | null; 
+            error: any; 
+          };
           
         toast({
           title: 'Review updated',
@@ -93,7 +102,10 @@ export const useReviews = () => {
             media_type: review.media_type,
           })
           .select()
-          .single();
+          .single() as { 
+            data: Review | null; 
+            error: any; 
+          };
           
         toast({
           title: 'Review saved',
@@ -128,7 +140,10 @@ export const useReviews = () => {
         .from('reviews')
         .delete()
         .eq('user_id', userId)
-        .eq('movie_id', movieId);
+        .eq('movie_id', movieId) as {
+          data: any;
+          error: any;
+        };
         
       if (error) {
         throw error;

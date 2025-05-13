@@ -3,14 +3,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { UserRating } from '@/types';
 
 // Type declarations for our new tables
-type MovieCollection = {
+export type MovieCollection = {
   id?: string;
   user_id: string;
   movie_id: number;
   media_type: 'movie' | 'tv';
 };
 
-type Review = {
+export type Review = {
   id?: string;
   user_id: string;
   movie_id: number;
@@ -24,33 +24,45 @@ export const loadUserCollections = async (username: string) => {
   try {
     // Load liked movies
     const { data: liked, error: likedError } = await supabase
-      .from<MovieCollection>('liked_movies')
+      .from('liked_movies')
       .select('movie_id, media_type')
-      .eq('user_id', username);
+      .eq('user_id', username) as { 
+        data: MovieCollection[] | null; 
+        error: any; 
+      };
       
     if (likedError) throw likedError;
     
     // Load watched movies
     const { data: watched, error: watchedError } = await supabase
-      .from<MovieCollection>('watched_movies')
+      .from('watched_movies')
       .select('movie_id, media_type')
-      .eq('user_id', username);
+      .eq('user_id', username) as { 
+        data: MovieCollection[] | null; 
+        error: any; 
+      };
       
     if (watchedError) throw watchedError;
     
     // Load watchlist movies
     const { data: watchlist, error: watchlistError } = await supabase
-      .from<MovieCollection>('watchlist_movies')
+      .from('watchlist_movies')
       .select('movie_id, media_type')
-      .eq('user_id', username);
+      .eq('user_id', username) as { 
+        data: MovieCollection[] | null; 
+        error: any; 
+      };
       
     if (watchlistError) throw watchlistError;
     
     // Load reviews (for ratings)
     const { data: reviews, error: reviewsError } = await supabase
-      .from<Review>('reviews')
+      .from('reviews')
       .select('movie_id, rating, media_type')
-      .eq('user_id', username);
+      .eq('user_id', username) as { 
+        data: Review[] | null; 
+        error: any; 
+      };
       
     if (reviewsError) throw reviewsError;
     
@@ -90,12 +102,12 @@ export const addToCollection = async (
     const tableName = `${collection}_movies`;
     
     const { error } = await supabase
-      .from<MovieCollection>(tableName)
+      .from(tableName)
       .insert({
         user_id: username,
         movie_id: movieId,
         media_type: mediaType
-      });
+      }) as { data: any; error: any };
       
     if (error) {
       // If error is due to unique constraint, it's not a real error
@@ -122,20 +134,20 @@ export const removeFromCollection = async (
     const tableName = `${collection}_movies`;
     
     const { error } = await supabase
-      .from<MovieCollection>(tableName)
+      .from(tableName)
       .delete()
       .eq('user_id', username)
-      .eq('movie_id', movieId);
+      .eq('movie_id', movieId) as { data: any; error: any };
       
     if (error) throw error;
     
     // If removing from watched, also remove any reviews
     if (collection === 'watched') {
       await supabase
-        .from<Review>('reviews')
+        .from('reviews')
         .delete()
         .eq('user_id', username)
-        .eq('movie_id', movieId);
+        .eq('movie_id', movieId) as { data: any; error: any };
     }
     
     return { data: true, error: null };
@@ -155,49 +167,49 @@ export const saveRating = async (
   try {
     // Check if already in watched collection
     const { data: watched } = await supabase
-      .from<MovieCollection>('watched_movies')
+      .from('watched_movies')
       .select('movie_id')
       .eq('user_id', username)
       .eq('movie_id', movieId)
-      .maybeSingle();
+      .maybeSingle() as { data: MovieCollection | null; error: any };
       
     // If not in watched collection, add it
     if (!watched) {
       await supabase
-        .from<MovieCollection>('watched_movies')
+        .from('watched_movies')
         .insert({
           user_id: username,
           movie_id: movieId,
           media_type: mediaType
-        });
+        }) as { data: any; error: any };
     }
     
     // Add to or update the reviews table
     const { data: existingReview } = await supabase
-      .from<Review>('reviews')
+      .from('reviews')
       .select('id')
       .eq('user_id', username)
       .eq('movie_id', movieId)
-      .maybeSingle();
+      .maybeSingle() as { data: Review | null; error: any };
       
     if (existingReview) {
       // Update existing review
       const { error } = await supabase
-        .from<Review>('reviews')
+        .from('reviews')
         .update({ rating })
-        .eq('id', existingReview.id);
+        .eq('id', existingReview.id) as { data: any; error: any };
         
       if (error) throw error;
     } else {
       // Insert new review
       const { error } = await supabase
-        .from<Review>('reviews')
+        .from('reviews')
         .insert({
           user_id: username,
           movie_id: movieId,
           rating,
           media_type: mediaType
-        });
+        }) as { data: any; error: any };
         
       if (error) throw error;
     }
@@ -216,10 +228,10 @@ export const removeRating = async (
 ) => {
   try {
     const { error } = await supabase
-      .from<Review>('reviews')
+      .from('reviews')
       .delete()
       .eq('user_id', username)
-      .eq('movie_id', movieId);
+      .eq('movie_id', movieId) as { data: any; error: any };
       
     if (error) throw error;
     
