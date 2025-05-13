@@ -2,13 +2,21 @@
 import { supabase } from '@/integrations/supabase/client';
 import { UserRating } from '@/types';
 
+// Type declarations for our new tables
+type MovieCollection = {
+  id: string;
+  user_id: string;
+  movie_id: number;
+  media_type: 'movie' | 'tv';
+};
+
 // Load all user collections from Supabase
 export const loadUserCollections = async (username: string) => {
   try {
     // Load liked movies
     const { data: liked, error: likedError } = await supabase
       .from('liked_movies')
-      .select('movie_id')
+      .select('movie_id, media_type')
       .eq('user_id', username);
       
     if (likedError) throw likedError;
@@ -16,7 +24,7 @@ export const loadUserCollections = async (username: string) => {
     // Load watched movies
     const { data: watched, error: watchedError } = await supabase
       .from('watched_movies')
-      .select('movie_id')
+      .select('movie_id, media_type')
       .eq('user_id', username);
       
     if (watchedError) throw watchedError;
@@ -24,7 +32,7 @@ export const loadUserCollections = async (username: string) => {
     // Load watchlist movies
     const { data: watchlist, error: watchlistError } = await supabase
       .from('watchlist_movies')
-      .select('movie_id')
+      .select('movie_id, media_type')
       .eq('user_id', username);
       
     if (watchlistError) throw watchlistError;
@@ -38,14 +46,14 @@ export const loadUserCollections = async (username: string) => {
     if (reviewsError) throw reviewsError;
     
     // Convert to expected format
-    const likedIds = liked.map(item => item.movie_id);
-    const watchedIds = watched.map(item => item.movie_id);
-    const watchlistIds = watchlist.map(item => item.movie_id);
-    const ratings = reviews.map(review => ({
+    const likedIds = liked?.map(item => item.movie_id) || [];
+    const watchedIds = watched?.map(item => item.movie_id) || [];
+    const watchlistIds = watchlist?.map(item => item.movie_id) || [];
+    const ratings = reviews?.map(review => ({
       movieId: review.movie_id,
       rating: review.rating,
       media_type: review.media_type
-    })) as UserRating[];
+    })) as UserRating[] || [];
     
     return { 
       data: {
