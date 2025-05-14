@@ -1,27 +1,11 @@
 
 import { useState, useEffect } from 'react';
 import { CollectionType, UserRating } from '@/types';
+import { jsonToUserRatings } from '@/types/supabase';
 import { loadFromLocalStorage, saveToLocalStorage } from './collections/useLocalStorage';
-import { 
-  loadUserCollections, 
-  addToCollection as addToCollectionInSupabase, 
-  removeFromCollection as removeFromCollectionInSupabase,
-  saveRating as saveRatingInSupabase,
-  removeRating as removeRatingInSupabase,
-  moveToWatched as moveToWatchedInSupabase
-} from './collections';
-import { 
-  isInCollection as checkInCollection, 
-  addToCollection as addTo, 
-  removeFromCollection as removeFrom, 
-  moveToWatched as moveTo 
-} from './collections/useCollectionOperations';
-import { 
-  addRating as addRatingTo, 
-  removeRating as removeRatingFrom, 
-  getRating as getUserRating 
-} from './collections/useRatingOperations';
-import { useToast } from './use-toast';
+import { loadUserDataFromSupabase, createUserCollection, updateUserCollection } from './collections/useSupabaseOperations';
+import { isInCollection as checkInCollection, addToCollection as addTo, removeFromCollection as removeFrom, moveToWatched as moveTo } from './collections/useCollectionOperations';
+import { addRating as addRatingTo, removeRating as removeRatingFrom, getRating as getUserRating } from './collections/useRatingOperations';
 
 export const useUserCollections = () => {
   const [liked, setLiked] = useState<number[]>([]);
@@ -29,8 +13,6 @@ export const useUserCollections = () => {
   const [watchlist, setWatchlist] = useState<number[]>([]);
   const [ratings, setRatings] = useState<UserRating[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
-  const { toast } = useToast();
 
   // Load user ID on mount
   useEffect(() => {
@@ -43,33 +25,55 @@ export const useUserCollections = () => {
 
   // Load user data from Supabase
   const loadUserData = async (username: string) => {
-    setLoading(true);
     try {
-      const { data, error } = await loadUserCollections(username);
+      const { data, error } = await loadUserDataFromSupabase(username);
       
       if (error) {
-        console.error('Error loading user collections:', error);
-        loadFromLocalStorageData();
+        if (error.code === 'PGRST116') {
+          // No data found, create a new record
+          const storedData = loadFromLocalStorage();
+
+          // Create new record with localStorage data
+          const { error: insertError } = await createUserCollection(
+            username,
+            storedData.liked,
+            storedData.watched,
+            storedData.watchlist,
+            storedData.ratings
+          );
+
+          if (insertError) {
+            console.error('Error inserting user data:', insertError);
+          }
+
+          setLiked(storedData.liked);
+          setWatched(storedData.watched);
+          setWatchlist(storedData.watchlist);
+          setRatings(storedData.ratings);
+        } else {
+          console.error('Error loading user data:', error);
+          // Fallback to localStorage
+          loadFromLocalStorageData();
+        }
       } else if (data) {
         // Use data from Supabase
         setLiked(data.liked || []);
         setWatched(data.watched || []);
         setWatchlist(data.watchlist || []);
-        setRatings(data.ratings || []);
+        setRatings(data.ratings ? jsonToUserRatings(data.ratings) : []);
 
         // Update localStorage with Supabase data
         saveToLocalStorage(
           data.liked || [],
           data.watched || [],
           data.watchlist || [],
-          data.ratings || []
+          data.ratings ? jsonToUserRatings(data.ratings) : []
         );
       }
     } catch (error) {
       console.error('Error in loadUserData:', error);
+      // Fallback to localStorage
       loadFromLocalStorageData();
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -82,176 +86,76 @@ export const useUserCollections = () => {
     setRatings(storedData.ratings);
   };
 
-  // Handle add to collection with Supabase persistence
-  const handleAddToCollection = async (movieId: number, collection: CollectionType, media_type: 'movie' | 'tv' = 'movie') => {
+  // Save to Supabase and localStorage
+  const saveUserData = async () => {
     if (!userId) {
-      // Just update local state if not logged in
-      const collections = { liked, watched, watchlist };
-      addTo(movieId, collection, collections, setLiked, setWatched, setWatchlist, setRatings, ratings);
+      // If not logged in, just save to localStorage
       return;
     }
 
-    // Update Supabase
-    const { error } = await addToCollectionInSupabase(userId, movieId, collection, media_type);
-    
-    if (error) {
-      console.error(`Error adding to ${collection}:`, error);
-      toast({
-        title: 'Error',
-        description: `Failed to add to your ${collection} collection`,
-        variant: 'destructive',
-      });
-    } else {
-      // Update local state
-      const collections = { liked, watched, watchlist };
-      addTo(movieId, collection, collections, setLiked, setWatched, setWatchlist, setRatings, ratings);
-      
-      // Special handling for watchlist -> watched transition
-      if (collection === 'watched' && collections.watchlist.includes(movieId)) {
-        await removeFromCollectionInSupabase(userId, movieId, 'watchlist');
+    try {
+      const { error } = await updateUserCollection(
+        userId,
+        liked,
+        watched,
+        watchlist,
+        ratings
+      );
+
+      if (error) {
+        console.error('Error saving user data:', error);
       }
-
-      toast({
-        title: 'Success',
-        description: `Added to your ${collection} collection`,
-      });
+    } catch (error) {
+      console.error('Error in saveUserData:', error);
     }
   };
 
-  // Handle remove from collection with Supabase persistence
-  const handleRemoveFromCollection = async (movieId: number, collection: CollectionType) => {
-    if (!userId) {
-      // Just update local state if not logged in
-      const collections = { liked, watched, watchlist };
-      removeFrom(movieId, collection, collections, setLiked, setWatched, setWatchlist, setRatings, ratings);
-      return;
-    }
-
-    // Update Supabase
-    const { error } = await removeFromCollectionInSupabase(userId, movieId, collection);
-    
-    if (error) {
-      console.error(`Error removing from ${collection}:`, error);
-      toast({
-        title: 'Error',
-        description: `Failed to remove from your ${collection} collection`,
-        variant: 'destructive',
-      });
-    } else {
-      // Update local state
-      const collections = { liked, watched, watchlist };
-      removeFrom(movieId, collection, collections, setLiked, setWatched, setWatchlist, setRatings, ratings);
-      
-      toast({
-        title: 'Success',
-        description: `Removed from your ${collection} collection`,
-      });
-    }
-  };
-
-  // Handle move to watched with Supabase persistence
-  const handleMoveToWatched = async (movieId: number, media_type: 'movie' | 'tv' = 'movie') => {
-    if (!userId) {
-      // Just update local state if not logged in
-      const collections = { liked, watched, watchlist };
-      moveTo(movieId, collections, setWatched, setWatchlist);
-      return;
-    }
-
-    // Add to watched in Supabase
-    await addToCollectionInSupabase(userId, movieId, 'watched', media_type);
-    
-    // Remove from watchlist in Supabase
-    await removeFromCollectionInSupabase(userId, movieId, 'watchlist');
-    
-    // Update local state
-    const collections = { liked, watched, watchlist };
-    moveTo(movieId, collections, setWatched, setWatchlist);
-    
-    toast({
-      title: 'Success',
-      description: 'Moved to your watched collection',
-    });
-  };
-
-  // Handle add rating with Supabase persistence
-  const handleAddRating = async (movieId: number, rating: number, media_type: 'movie' | 'tv' = 'movie') => {
-    if (!userId) {
-      // Just update local state if not logged in
-      addRatingTo(movieId, rating, media_type, ratings, setRatings, watched, setWatched, watchlist, setWatchlist);
-      return;
-    }
-
-    // Update Supabase
-    const { error } = await saveRatingInSupabase(userId, movieId, rating, media_type);
-    
-    if (error) {
-      console.error('Error saving rating:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to save your rating',
-        variant: 'destructive',
-      });
-    } else {
-      // Update local state
-      addRatingTo(movieId, rating, media_type, ratings, setRatings, watched, setWatched, watchlist, setWatchlist);
-      
-      toast({
-        title: 'Rating saved',
-        description: `You rated this ${rating} stars`,
-      });
-    }
-  };
-
-  // Handle remove rating with Supabase persistence
-  const handleRemoveRating = async (movieId: number) => {
-    if (!userId) {
-      // Just update local state if not logged in
-      removeRatingFrom(movieId, ratings, setRatings);
-      return;
-    }
-
-    // Update Supabase
-    const { error } = await removeRatingInSupabase(userId, movieId);
-    
-    if (error) {
-      console.error('Error removing rating:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to remove your rating',
-        variant: 'destructive',
-      });
-    } else {
-      // Update local state
-      removeRatingFrom(movieId, ratings, setRatings);
-      
-      toast({
-        title: 'Rating removed',
-        description: 'Your rating has been removed',
-      });
-    }
-  };
-
-  // Save to localStorage on state changes
+  // Save collections to localStorage and Supabase whenever they change
   useEffect(() => {
-    saveToLocalStorage(liked, watched, watchlist, ratings);
-  }, [liked, watched, watchlist, ratings]);
+    localStorage.setItem('liked', JSON.stringify(liked));
+    saveUserData();
+  }, [liked]);
 
-  // Collection operations
+  useEffect(() => {
+    localStorage.setItem('watched', JSON.stringify(watched));
+    saveUserData();
+  }, [watched]);
+
+  useEffect(() => {
+    localStorage.setItem('watchlist', JSON.stringify(watchlist));
+    saveUserData();
+  }, [watchlist]);
+
+  useEffect(() => {
+    localStorage.setItem('ratings', JSON.stringify(ratings));
+    saveUserData();
+  }, [ratings]);
+
+  // Collection operations using imported functions
   const collections = { liked, watched, watchlist };
   
   return {
     collections,
     ratings,
-    loading,
-    addToCollection: handleAddToCollection,
-    removeFromCollection: handleRemoveFromCollection,
+    addToCollection: (movieId: number, collection: CollectionType) => 
+      addTo(movieId, collection, collections, setLiked, setWatched, setWatchlist, setRatings, ratings),
+    
+    removeFromCollection: (movieId: number, collection: CollectionType) => 
+      removeFrom(movieId, collection, collections, setLiked, setWatched, setWatchlist, setRatings, ratings),
+    
     isInCollection: (movieId: number, collection: CollectionType) => 
       checkInCollection(movieId, collection, collections),
-    moveToWatched: handleMoveToWatched,
-    addRating: handleAddRating,
-    removeRating: handleRemoveRating,
-    getRating: (movieId: number) => getUserRating(movieId, ratings),
-    refreshCollections: () => userId && loadUserData(userId)
+    
+    moveToWatched: (movieId: number) => 
+      moveTo(movieId, collections, setWatched, setWatchlist),
+    
+    addRating: (movieId: number, rating: number, media_type: 'movie' | 'tv' = 'movie') => 
+      addRatingTo(movieId, rating, media_type, ratings, setRatings, watched, setWatched, watchlist, setWatchlist),
+    
+    removeRating: (movieId: number) => 
+      removeRatingFrom(movieId, ratings, setRatings),
+    
+    getRating: (movieId: number) => 
+      getUserRating(movieId, ratings)
   };
 };

@@ -9,63 +9,6 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      liked_movies: {
-        Row: {
-          created_at: string | null
-          id: string
-          media_type: string
-          movie_id: number
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          media_type: string
-          movie_id: number
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          media_type?: string
-          movie_id?: number
-          user_id?: string
-        }
-        Relationships: []
-      }
-      reviews: {
-        Row: {
-          created_at: string | null
-          id: string
-          media_type: string
-          movie_id: number
-          rating: number
-          review_text: string | null
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          media_type: string
-          movie_id: number
-          rating: number
-          review_text?: string | null
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          media_type?: string
-          movie_id?: number
-          rating?: number
-          review_text?: string | null
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
       user_collections: {
         Row: {
           id: string
@@ -90,54 +33,6 @@ export type Database = {
           username?: string
           watched?: number[] | null
           watchlist?: number[] | null
-        }
-        Relationships: []
-      }
-      watched_movies: {
-        Row: {
-          created_at: string | null
-          id: string
-          media_type: string
-          movie_id: number
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          media_type: string
-          movie_id: number
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          media_type?: string
-          movie_id?: number
-          user_id?: string
-        }
-        Relationships: []
-      }
-      watchlist_movies: {
-        Row: {
-          created_at: string | null
-          id: string
-          media_type: string
-          movie_id: number
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          media_type: string
-          movie_id: number
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          media_type?: string
-          movie_id?: number
-          user_id?: string
         }
         Relationships: []
       }

@@ -7,9 +7,9 @@ import { useMediaType } from '@/hooks/useMediaType';
 import { SAMPLE_MOVIES } from '@/utils/tmdb/sample-data';
 
 export const useMovieData = () => {
-  const { mediaType, setMediaType: setCurrentMediaType, getSampleMedia } = useMediaType();
-  const [movies, setMovies] = useState<Movie[]>(getSampleMedia());
-  const [filteredMovies, setFilteredMovies] = useState<Movie[]>(getSampleMedia());
+  const { mediaType, setMediaType: setCurrentMediaType, getSampleMovies } = useMediaType();
+  const [movies, setMovies] = useState<Movie[]>(getSampleMovies());
+  const [filteredMovies, setFilteredMovies] = useState<Movie[]>(getSampleMovies());
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

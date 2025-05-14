@@ -1,24 +1,20 @@
+
 import { Movie, CollectionType, Person } from '@/types';
 import { Button } from '@/components/ui/button';
 import RatingStars from './RatingStars';
 import { useState } from 'react';
-import { ArrowLeft, User, PenLine } from 'lucide-react';
-import { Review } from '@/hooks/useReviews';
-import ReviewForm from './ReviewForm';
+import { ArrowLeft, User } from 'lucide-react';
 
 interface MovieDetailProps {
   movie: Movie;
   onBack: () => void;
-  onAddToCollection: (movieId: number, collection: CollectionType, mediaType?: 'movie' | 'tv') => void;
+  onAddToCollection: (movieId: number, collection: CollectionType) => void;
   onRemoveFromCollection: (movieId: number, collection: CollectionType) => void;
   isInCollection: (movieId: number, collection: CollectionType) => boolean;
-  onRate?: (movieId: number, rating: number, mediaType?: 'movie' | 'tv') => void;
+  onRate?: (movieId: number, rating: number) => void;
   onDeleteRating?: (movieId: number) => void;
   userRating?: number;
   onPersonClick?: (person: Person) => void;
-  onReviewSave?: (review: Review) => void;
-  onReviewDelete?: (movieId: number) => void;
-  userReview?: Review;
 }
 
 const MovieDetail = ({
@@ -30,19 +26,15 @@ const MovieDetail = ({
   onRate,
   onDeleteRating,
   userRating,
-  onPersonClick,
-  onReviewSave,
-  onReviewDelete,
-  userReview
+  onPersonClick
 }: MovieDetailProps) => {
   const [showCast, setShowCast] = useState(true);
-  const [showReviewForm, setShowReviewForm] = useState(false);
   
   const handleCollectionAction = (collection: CollectionType) => {
     if (isInCollection(movie.id, collection)) {
       onRemoveFromCollection(movie.id, collection);
     } else {
-      onAddToCollection(movie.id, collection, movie.media_type);
+      onAddToCollection(movie.id, collection);
     }
   };
   
@@ -52,53 +44,6 @@ const MovieDetail = ({
     }
   };
   
-  const handleRating = (movieId: number, rating: number) => {
-    if (onRate) {
-      onRate(movieId, rating, movie.media_type);
-    }
-  };
-  
-  const handleDeleteRating = (movieId: number) => {
-    if (onDeleteRating) {
-      onDeleteRating(movieId);
-    }
-  };
-
-  const handleReviewClick = () => {
-    setShowReviewForm(true);
-  };
-
-  const handleReviewCancel = () => {
-    setShowReviewForm(false);
-  };
-
-  const handleReviewSave = (review: Review) => {
-    if (onReviewSave) {
-      onReviewSave(review);
-      setShowReviewForm(false);
-    }
-  };
-
-  const handleReviewDelete = (movieId: number) => {
-    if (onReviewDelete) {
-      onReviewDelete(movieId);
-      setShowReviewForm(false);
-    }
-  };
-  
-  // If showing review form, display that instead of movie details
-  if (showReviewForm) {
-    return (
-      <ReviewForm
-        movie={movie}
-        initialReview={userReview}
-        onSave={handleReviewSave}
-        onCancel={handleReviewCancel}
-        onDelete={onReviewDelete}
-      />
-    );
-  }
-
   return (
     <div className="bg-card rounded-lg border border-border shadow-lg p-4 animate-fade-in">
       <button 
@@ -147,36 +92,13 @@ const MovieDetail = ({
             {onRate && isInCollection(movie.id, 'watched') && (
               <div className="flex flex-col gap-1 pt-1">
                 <span className="font-semibold">Your Rating:</span>
-                <div className="flex items-center">
-                  <RatingStars 
-                    initialRating={userRating || 0} 
-                    movieId={movie.id} 
-                    onRate={handleRating}
-                    onDelete={handleDeleteRating}
-                    size="md"
-                  />
-                  
-                  {onReviewSave && (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="ml-4"
-                      onClick={handleReviewClick}
-                    >
-                      <PenLine className="mr-1" size={16} />
-                      {userReview ? "Edit Review" : "Write Review"}
-                    </Button>
-                  )}
-                </div>
-              </div>
-            )}
-            
-            {userReview?.review_text && (
-              <div className="mt-2 pt-2 border-t">
-                <h4 className="font-semibold mb-1">Your Review:</h4>
-                <p className="text-foreground italic bg-muted/30 p-3 rounded-md">
-                  {userReview.review_text}
-                </p>
+                <RatingStars 
+                  initialRating={userRating || 0} 
+                  movieId={movie.id} 
+                  onRate={onRate}
+                  onDelete={onDeleteRating}
+                  size="md"
+                />
               </div>
             )}
           </div>

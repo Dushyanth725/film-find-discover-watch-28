@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMovieData } from '@/hooks/useMovieData';
 import { useUserCollections } from '@/hooks/useUserCollections';
-import { useReviews, Review } from '@/hooks/useReviews';
 import { Movie, CollectionType, Person } from '@/types';
 import Navbar from '@/components/Navbar';
 import SearchFilters from '@/components/SearchFilters';
@@ -26,16 +25,8 @@ const Dashboard = () => {
     ratings,
     addRating,
     removeRating,
-    getRating,
-    refreshCollections
+    getRating
   } = useUserCollections();
-  
-  const {
-    reviews,
-    saveReview,
-    deleteReview,
-    getReview
-  } = useReviews();
   
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [activeCollection, setActiveCollection] = useState<CollectionType | null>(null);
@@ -83,36 +74,32 @@ const Dashboard = () => {
     }
   };
 
-  const handleAddToCollection = (movieId: number, collection: CollectionType, mediaType?: 'movie' | 'tv') => {
-    addToCollection(movieId, collection, mediaType);
-    refreshCollections();
+  const handleAddToCollection = (movieId: number, collection: CollectionType) => {
+    addToCollection(movieId, collection);
     toast({
       title: 'Added to collection',
-      description: `${mediaType === 'tv' ? 'Series' : 'Movie'} added to your ${collection} list`,
+      description: `Movie added to your ${collection} list`,
     });
   };
 
   const handleRemoveFromCollection = (movieId: number, collection: CollectionType) => {
     removeFromCollection(movieId, collection);
-    refreshCollections();
     toast({
       title: 'Removed from collection',
-      description: `Item removed from your ${collection} list`,
+      description: `Movie removed from your ${collection} list`,
     });
   };
 
   const handleMoveToWatched = (movieId: number) => {
-    moveToWatched(movieId, mediaType);
-    refreshCollections();
+    moveToWatched(movieId);
     toast({
       title: 'Moved to watched',
-      description: 'Item moved to your watched list',
+      description: 'Movie moved to your watched list',
     });
   };
 
-  const handleRate = (movieId: number, rating: number, mediaType: 'movie' | 'tv' = 'movie') => {
+  const handleRate = (movieId: number, rating: number) => {
     addRating(movieId, rating, mediaType);
-    refreshCollections();
     toast({
       title: 'Rating saved',
       description: `You rated this ${mediaType === 'movie' ? 'movie' : 'TV series'} ${rating} stars`,
@@ -121,26 +108,9 @@ const Dashboard = () => {
 
   const handleDeleteRating = (movieId: number) => {
     removeRating(movieId);
-    refreshCollections();
     toast({
       title: 'Rating removed',
       description: `Your rating has been removed`,
-    });
-  };
-
-  const handleReviewSave = async (review: Review) => {
-    await saveReview(review);
-    toast({
-      title: 'Review saved',
-      description: 'Your review has been saved successfully',
-    });
-  };
-
-  const handleReviewDelete = async (movieId: number) => {
-    await deleteReview(movieId);
-    toast({
-      title: 'Review deleted',
-      description: 'Your review has been deleted successfully',
     });
   };
 
@@ -180,13 +150,6 @@ const Dashboard = () => {
     await filterMovies(filters);
   };
 
-  const getSearchPlaceholder = () => {
-    if (activeCollection) {
-      return `Search your ${activeCollection} ${mediaType === 'movie' ? 'movies' : 'series'}`;
-    }
-    return `Search your ${mediaType === 'movie' ? 'movies' : 'series'}`;
-  };
-
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
@@ -217,11 +180,7 @@ const Dashboard = () => {
         
         {!activeCollection && (
           <div className="mb-6">
-            <SearchFilters 
-              onSearch={handleSearch} 
-              mediaType={mediaType} 
-              placeholder={getSearchPlaceholder()} 
-            />
+            <SearchFilters onSearch={handleSearch} mediaType={mediaType} />
           </div>
         )}
         
@@ -288,9 +247,6 @@ const Dashboard = () => {
                   onDeleteRating={handleDeleteRating}
                   userRating={getRating(selectedMovie.id)}
                   onPersonClick={handlePersonClick}
-                  onReviewSave={handleReviewSave}
-                  onReviewDelete={handleReviewDelete}
-                  userReview={getReview(selectedMovie.id)}
                 />
               )}
             </div>
