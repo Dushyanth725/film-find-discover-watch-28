@@ -69,4 +69,60 @@ export const SAMPLE_MOVIES: Movie[] = [
     poster: "https://m.media-amazon.com/images/M/MV5BMmEzNTkxYjQtZTc0MC00YTVjLTg5ZTEtZWMwOWVlYzY0NWIwXkEyXkFqcGdeQXVyNzkwMjQ5NzM@._V1_.jpg",
     media_type: "movie"
   },
+  // TV Series samples
+  {
+    id: 101,
+    title: "Breaking Bad",
+    year: 2008,
+    director: "Vince Gilligan",
+    genre: ["Crime", "Drama", "Thriller"],
+    rating: 9.5,
+    synopsis: "A high school chemistry teacher diagnosed with inoperable lung cancer turns to manufacturing and selling methamphetamine in order to secure his family's future.",
+    poster: "https://m.media-amazon.com/images/M/MV5BYmQ4YWMxYjUtNjZmYi00MDQ1LWFjMjMtNjA5ZDdiYjdiODU5XkEyXkFqcGdeQXVyMTMzNDExODE5._V1_.jpg",
+    media_type: "tv"
+  },
+  {
+    id: 102,
+    title: "Game of Thrones",
+    year: 2011,
+    director: "David Benioff, D.B. Weiss",
+    genre: ["Action", "Adventure", "Drama"],
+    rating: 9.2,
+    synopsis: "Nine noble families fight for control over the lands of Westeros, while an ancient enemy returns after being dormant for millennia.",
+    poster: "https://m.media-amazon.com/images/M/MV5BYTRiNDQwYzAtMzVlZS00NTI5LWJjYjUtMzkwNTUzMWMxZTllXkEyXkFqcGdeQXVyNDIzMzcwNjc@._V1_.jpg",
+    media_type: "tv"
+  },
+  {
+    id: 103,
+    title: "Stranger Things",
+    year: 2016,
+    director: "The Duffer Brothers",
+    genre: ["Drama", "Fantasy", "Horror"],
+    rating: 8.7,
+    synopsis: "When a young boy disappears, his mother, a police chief, and his friends must confront terrifying supernatural forces in order to get him back.",
+    poster: "https://m.media-amazon.com/images/M/MV5BMDZkYmVhNjMtNWU4MC00MDQxLWE3MjYtZGMzZWI1ZjhlOWJmXkEyXkFqcGdeQXVyMTkxNjUyNQ@@._V1_.jpg",
+    media_type: "tv"
+  },
+  {
+    id: 104,
+    title: "The Office",
+    year: 2005,
+    director: "Greg Daniels, Ricky Gervais, Stephen Merchant",
+    genre: ["Comedy"],
+    rating: 9.0,
+    synopsis: "A mockumentary on a group of typical office workers, where the workday consists of ego clashes, inappropriate behavior, and tedium.",
+    poster: "https://m.media-amazon.com/images/M/MV5BMDNkOTE4NDQtMTNmYi00MWE0LWE4ZTktYTc0NzhhNWIzNzJiXkEyXkFqcGdeQXVyMzQ2MDI5NjU@._V1_.jpg",
+    media_type: "tv"
+  },
+  {
+    id: 105,
+    title: "The Mandalorian",
+    year: 2019,
+    director: "Jon Favreau",
+    genre: ["Action", "Adventure", "Fantasy"],
+    rating: 8.7,
+    synopsis: "The travels of a lone bounty hunter in the outer reaches of the galaxy, far from the authority of the New Republic.",
+    poster: "https://m.media-amazon.com/images/M/MV5BZDhlMzY0ZGItZTcyNS00ZTAxLWIyMmYtZGQ2ODg5OWZiYmJkXkEyXkFqcGdeQXVyODkzNTgxMDg@._V1_.jpg",
+    media_type: "tv"
+  }
 ];
